@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Gergely01
+      POSTGRES_DB: fded_db
+    ports:
+      - "5433:5432"
+
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql://postgres:Gergely01@db:5432/fded_db
+    ports:
+      - "8000:8000"
