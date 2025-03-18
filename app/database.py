@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # .env fájl betöltése
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Gergely01@localhost:5433/fded_db")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
