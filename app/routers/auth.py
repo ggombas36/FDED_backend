@@ -6,6 +6,8 @@ from app.models import User
 from app.schemas import UserCreate, UserLogin, UserResponse
 from app.exception import UserExistsError, EmailExistsError
 from sqlalchemy.exc import IntegrityError
+from app.auth.jwt import create_access_token
+from datetime import timedelta
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -48,12 +50,18 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Váratlan hiba történt a regisztráció során")
 
 @router.post("/login")
-def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == login_data.email).first()
-    if not user or not pwd_context.verify(login_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-    
-    return {"message": "Login successful", "user_id": user.id}
+def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == user_data.email).first()
+    if not user or user.password != user_data.password:
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+
+    # Token generálása 4 órára
+    access_token_expires = timedelta(hours=4)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/users")
 def get_users(db: Session = Depends(get_db)):
