@@ -49,19 +49,68 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(status_code=400, detail="Váratlan hiba történt a regisztráció során")
 
+# @router.post("/login")
+# def login(user_data: UserLogin, db: Session = Depends(get_db)):
+#     user = db.query(User).filter(User.email == user_data.email).first()
+#     if not user or user.password != user_data.password:
+#         raise HTTPException(status_code=400, detail="Invalid credentials")
+
+#     # Token generálása 4 órára
+#     access_token_expires = timedelta(hours=4)
+#     access_token = create_access_token(
+#         data={"sub": user.email}, expires_delta=access_token_expires
+#     )
+
+#     return {"access_token": access_token, "token_type": "bearer"}
+
 @router.post("/login")
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == user_data.email).first()
-    if not user or user.password != user_data.password:
-        raise HTTPException(status_code=400, detail="Invalid credentials")
-
-    # Token generálása 4 órára
-    access_token_expires = timedelta(hours=4)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        # Felhasználó keresése email alapján
+        user = db.query(User).filter(User.email == user_data.email).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="Hibás email cím vagy jelszó"
+            )
+        
+        # Jelszó ellenőrzése a hash-elt jelszóval
+        if not pwd_context.verify(user_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=401,
+                detail="Hibás email cím vagy jelszó"
+            )
+        
+        # Token generálása 4 órára
+        access_token_expires = timedelta(hours=4)
+        access_token = create_access_token(
+            data={
+                "sub": user.email,
+                "user_id": user.id,
+                "username": user.username
+            },
+            expires_delta=access_token_expires
+        )
+        
+        # Sikeres bejelentkezés válasz
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "name": user.name
+            }
+        }
+        
+    except Exception as e:
+        print(f"Login error: {str(e)}")  # Debug log
+        raise HTTPException(
+            status_code=500,
+            detail="Hiba történt a bejelentkezés során"
+        )
 
 @router.get("/users")
 def get_users(db: Session = Depends(get_db)):
