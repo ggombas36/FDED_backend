@@ -26,12 +26,12 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         # Check if username exists
         db_user = db.query(User).filter(User.username == user_data.username).first()
         if db_user:
-            raise UserExistsError(detail="A felhasználónév már foglalt!")
+            raise UserExistsError()
         
         # Check if email exists
         db_email = db.query(User).filter(User.email == user_data.email).first()
         if db_email:
-            raise EmailExistsError(detail="Ez az email cím már regisztrálva van!")
+            raise EmailExistsError()
 
         # Create new user
         hashed_password = pwd_context.hash(user_data.password)
@@ -60,13 +60,28 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
         }
         return response_data
 
+    except (UserExistsError, EmailExistsError) as e:
+        # These exceptions already have the proper format and status code
+        raise e
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Váratlan hiba történt a regisztráció során")
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "DB_ERROR",
+                "message": "Váratlan hiba történt a regisztráció során"
+            }
+        )
     except Exception as e:
         db.rollback()
         print(f"Registration error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Hiba történt a regisztráció során")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "Hiba történt a regisztráció során"
+            }
+        )
 
 # @router.post("/login")
 # def login(user_data: UserLogin, db: Session = Depends(get_db)):
@@ -91,14 +106,20 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(
                 status_code=401,
-                detail="Hibás email cím vagy jelszó"
+                detail={
+                    "code": "NON_EXISTING_EMAIL",
+                    "message": "Ez az email cím nincs regisztrálva"
+                }
             )
         
         # Jelszó ellenőrzése a hash-elt jelszóval
         if not pwd_context.verify(user_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=401,
-                detail="Hibás email cím vagy jelszó"
+                detail={
+                    "code": "WRONG_PASSWORD",
+                    "message": "Hibás jelszó"
+                }
             )
         
         # Token generálása 4 órára
@@ -119,11 +140,16 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
             "user_id": user.id,
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Login error: {str(e)}")  # Debug log
         raise HTTPException(
             status_code=500,
-            detail="Hiba történt a bejelentkezés során"
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": "Hiba történt a bejelentkezés során"
+            }
         )
 
 @router.get("/users")
