@@ -19,19 +19,51 @@ def get_db():
     finally:
         db.close()
 
+# @router.post("/register", response_model=UserResponse)
+# def register(user_data: UserCreate, db: Session = Depends(get_db)):
+#     db_user = db.query(User).filter(User.username == user_data.username).first()
+#     if db_user:
+#         raise UserExistsError(detail="A felhasználónév már foglalt!")
+    
+#     # Ellenőrizzük, hogy létezik-e már az email
+#     db_email = db.query(User).filter(User.email == user_data.email).first()
+#     if db_email:
+#         raise EmailExistsError(detail="Ez az email cím már regisztrálva van!")
+
+#     hashed_password = pwd_context.hash(user_data.password)
+#     user = User(
+#         name=user_data.name,
+#         username=user_data.username,
+#         email=user_data.email,
+#         phone=user_data.phone,
+#         address=user_data.address,
+#         hashed_password=hashed_password
+#     )
+
+#     try:
+#         db.add(db_user)
+#         db.commit()
+#         db.refresh(db_user)
+#         return db_user
+#     except IntegrityError:
+#         db.rollback()
+#         raise HTTPException(status_code=400, detail="Váratlan hiba történt a regisztráció során")
+
 @router.post("/register", response_model=UserResponse)
 def register(user_data: UserCreate, db: Session = Depends(get_db)):
+    # Check if username exists
     db_user = db.query(User).filter(User.username == user_data.username).first()
     if db_user:
         raise UserExistsError(detail="A felhasználónév már foglalt!")
     
-    # Ellenőrizzük, hogy létezik-e már az email
+    # Check if email exists
     db_email = db.query(User).filter(User.email == user_data.email).first()
     if db_email:
         raise EmailExistsError(detail="Ez az email cím már regisztrálva van!")
 
+    # Create new user
     hashed_password = pwd_context.hash(user_data.password)
-    user = User(
+    new_user = User(
         name=user_data.name,
         username=user_data.username,
         email=user_data.email,
@@ -41,10 +73,10 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     )
 
     try:
-        db.add(db_user)
+        db.add(new_user)  # Changed from db_user to new_user
         db.commit()
-        db.refresh(db_user)
-        return db_user
+        db.refresh(new_user)
+        return new_user
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=400, detail="Váratlan hiba történt a regisztráció során")
