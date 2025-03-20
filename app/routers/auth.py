@@ -97,12 +97,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
         return {
             "access_token": access_token,
             "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "name": user.name
-            }
+            "user_id": user.id,
         }
         
     except Exception as e:
@@ -115,3 +110,29 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 @router.get("/users")
 def get_users(db: Session = Depends(get_db)):
     return db.query(User).all()
+
+
+@router.get("/users/{user_id}")
+def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="Felhasználó nem található"
+            )
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "name": user.name,
+            "phone": user.phone,
+            "address": user.address,
+            # Ne adjuk vissza a jelszó hash-t biztonsági okokból
+        }
+    except Exception as e:
+        print(f"Get user error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Hiba történt a felhasználó lekérése során"
+        )
